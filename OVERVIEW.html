@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coordinated AI — local-model orchestration</title>
+<style>
+  :root{
+    --ink:#13132b; --muted:#5b5b76; --line:#e6e8f2; --bg:#fbfcff;
+    --brand:#5b4bdc; --brand2:#9b6cf0; --green:#2f855a; --amber:#b7791f; --red:#c53030;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:16px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 1.25rem 4rem}
+  /* hero */
+  header{background:linear-gradient(135deg,#5b4bdc 0%,#9b6cf0 55%,#c86dd7 100%);
+         color:#fff;padding:3.2rem 1.25rem 3.6rem;text-align:center}
+  header .kicker{text-transform:uppercase;letter-spacing:.18em;font-size:.74rem;opacity:.85}
+  header h1{margin:.3rem 0 .2rem;font-size:2.7rem;letter-spacing:-.02em}
+  header p{margin:.4rem auto 0;max-width:680px;font-size:1.16rem;opacity:.95}
+  .tags{margin-top:1.4rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap}
+  .tag{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);
+       padding:.32rem .8rem;border-radius:999px;font-size:.82rem}
+  /* section */
+  section{margin-top:2.6rem}
+  h2{font-size:1.42rem;letter-spacing:-.01em;margin:0 0 .2rem}
+  h2 .n{color:var(--brand);font-weight:800;margin-right:.5rem}
+  .lead{color:var(--muted);margin:.1rem 0 1.1rem}
+  /* homunculus diagram */
+  .flow{display:grid;grid-template-columns:1.1fr 1.4fr;gap:1rem;align-items:stretch}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.2rem;
+         box-shadow:0 1px 2px rgba(20,20,60,.04)}
+  .brain{background:linear-gradient(135deg,#1f1147,#3a1d6e);color:#fff;border:none}
+  .brain h3{margin:.1rem 0 .5rem;font-size:1.05rem}
+  .brain ul,.fleet ul{margin:.3rem 0 0;padding-left:1.1rem}
+  .brain li{margin:.2rem 0;opacity:.92}
+  .fleet h3{margin:.1rem 0 .5rem;font-size:1.05rem;color:var(--brand)}
+  .worker{display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+          border:1px dashed var(--line);border-radius:10px;padding:.45rem .7rem;margin:.4rem 0;
+          font-size:.9rem;background:#faf9ff}
+  .worker .dot{width:9px;height:9px;border-radius:50%;background:var(--green);display:inline-block;margin-right:.5rem}
+  .worker .dot.off{background:#c9ccda}
+  .worker code{color:var(--muted)}
+  /* stat band */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1rem 1.1rem;text-align:center}
+  .stat .n{font-size:1.9rem;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+  .stat .n.g{color:var(--green)} .stat .n.b{color:var(--brand)}
+  .stat .l{color:var(--muted);font-size:.82rem;margin-top:.2rem}
+  /* pipeline */
+  .pipe{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch}
+  .step{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:.8rem .9rem}
+  .step .t{font-weight:700;font-size:.92rem}
+  .step .d{color:var(--muted);font-size:.82rem;margin-top:.15rem}
+  .step .who{display:inline-block;margin-top:.5rem;font-size:.7rem;padding:.12rem .5rem;border-radius:999px}
+  .who.local{background:#eef0ff;color:var(--brand)} .who.claude{background:#fdeede;color:var(--amber)}
+  /* quality cards */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem}
+  .qc{background:#fff;border:1px solid var(--line);border-radius:14px;padding:1.1rem 1.15rem}
+  .qc h4{margin:.1rem 0 .35rem;font-size:1rem}
+  .qc p{margin:0;color:var(--muted);font-size:.9rem}
+  .qc .b{font-size:1.4rem;margin-bottom:.2rem}
+  /* proof */
+  .proof{background:#0f1024;color:#e7e7ff;border-radius:14px;padding:1.2rem 1.3rem;font-size:.92rem}
+  .proof code{color:#9be7a0;word-break:break-all}
+  .proof .row{display:flex;gap:.6rem;margin:.3rem 0}
+  .proof .k{color:#a8a8d8;min-width:130px}
+  /* misc */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  .note{background:#fff;border:1px solid var(--line);border-left:4px solid var(--brand);
+        border-radius:10px;padding:.8rem 1rem;color:var(--muted);font-size:.9rem}
+  footer{margin-top:3rem;color:var(--muted);font-size:.82rem;text-align:center;
+         border-top:1px solid var(--line);padding-top:1.4rem}
+  code.inl{background:#f0f1f8;padding:.08rem .35rem;border-radius:5px;font-size:.86em}
+  @media(max-width:760px){.flow,.two{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.grid3{grid-template-columns:1fr}header h1{font-size:2.1rem}}
+</style></head>
+<body>
+
+<header>
+  <div class="kicker">pem725 / coordinated-ai</div>
+  <h1>Coordinated AI</h1>
+  <p>Claude is the <b>homunculus</b> — a frontier orchestrator that decomposes a goal
+     and hands the bulk work to a fleet of small local models. Precise, replicable
+     artifacts at <b>$0 frontier cost</b> for the grunt work.</p>
+  <div class="tags">
+    <span class="tag">LM Studio · local LLMs</span>
+    <span class="tag">dependency-free (urllib)</span>
+    <span class="tag">byte-identical re-runs</span>
+    <span class="tag">self-policing quality control</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <h2><span class="n">01</span>The idea</h2>
+    <p class="lead">Spend the frontier model where judgment matters; let cheap local
+       workers do everything else.</p>
+    <div class="flow">
+      <div class="panel brain">
+        <h3>🧠 Claude — the orchestrator</h3>
+        <ul>
+          <li>Decomposes the goal into bounded subtasks</li>
+          <li>Dispatches them to the local fleet</li>
+          <li>Adjudicates only the escalated hard cases</li>
+          <li>Writes the final synthesis &amp; prose</li>
+        </ul>
+      </div>
+      <div class="panel fleet">
+        <h3>🛠️ Local worker fleet</h3>
+        <div class="worker"><span><span class="dot"></span>worker0 · this box</span><code>127.0.0.1:1234 · live</code></div>
+        <div class="worker"><span><span class="dot off"></span>mac-mini</span><code>add via COORDINATOR_ENDPOINTS</code></div>
+        <div class="worker"><span><span class="dot off"></span>gpu-box</span><code>add via COORDINATOR_ENDPOINTS</code></div>
+        <p style="margin:.6rem 0 0;color:var(--muted);font-size:.84rem">
+          <code class="inl">WorkerPool</code> health-checks every endpoint and load-balances
+          across the reachable ones — the same pipeline fans out to computers
+          throughout the house with no code change.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span>Proven on a real run</h2>
+    <p class="lead">A curated set of 10 paper abstracts → a polished evidence brief.</p>
+    <div class="stats">
+      <div class="stat"><div class="n b">7 / 3</div><div class="l">papers included / traps filtered</div></div>
+      <div class="stat"><div class="n g">$0</div><div class="l">frontier cost for the bulk</div></div>
+      <div class="stat"><div class="n">2,900</div><div class="l">tokens, all local</div></div>
+      <div class="stat"><div class="n g">0</div><div class="l">tokens on re-run (cached)</div></div>
+    </div>
+    <div class="pipe" style="margin-top:1rem">
+      <div class="step"><div class="t">Extract</div><div class="d">structured JSON per abstract, temp 0</div><span class="who local">local</span></div>
+      <div class="step"><div class="t">Triage</div><div class="d">confidence gate flags weak items</div><span class="who local">local</span></div>
+      <div class="step"><div class="t">Spot-check</div><div class="d">audit a sample vs gold labels</div><span class="who local">local</span></div>
+      <div class="step"><div class="t">Adjudicate</div><div class="d">escalated hard cases only</div><span class="who claude">Claude</span></div>
+      <div class="step"><div class="t">Render</div><div class="d">self-contained brief.html</div><span class="who local">deterministic</span></div>
+    </div>
+    <div class="note" style="margin-top:1rem">The two <b>homonym traps</b> — a <i>legal</i> trust
+      and a <i>trust fund</i> — plus a human-only-teams paper were filtered out automatically.
+      Workers emit an <code class="inl">enum</code> field, not prose to re-parse: precision by construction.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span>It polices itself</h2>
+    <p class="lead">Three independent quality layers, because a small model's confidence can't be trusted alone.</p>
+    <div class="grid3">
+      <div class="qc"><div class="b">①</div><h4>Confidence gate</h4>
+        <p>Cheap per-item triage. Fails <b>open</b> to Claude on blank, malformed, or truncated output — never crashes the batch.</p></div>
+      <div class="qc"><div class="b">②</div><h4>Spot-check audit</h4>
+        <p>Samples the batch independent of confidence and judges it by the <b>Wilson upper bound</b> on error — a clean tiny sample is honestly flagged "audit more," not rubber-stamped.</p></div>
+      <div class="qc"><div class="b">③</div><h4>Claude escalation</h4>
+        <p>Only the genuinely hard cases reach the frontier model. In the demo the workers nailed the clear papers and the audit caught the subtle boundary calls.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span>Replicable — verify it yourself</h2>
+    <p class="lead">Same inputs + same models → the same artifact, every run, on any machine.</p>
+    <div class="proof">
+      <div class="row"><span class="k">run 1 (fresh)</span><span>2,900 local tokens · produced brief.html</span></div>
+      <div class="row"><span class="k">run 2 (cached)</span><span>0 tokens · byte-identical output</span></div>
+      <div class="row"><span class="k">sha256</span><code>99d64557f62e77bb43bc6e0dd89c6671340570eb1555b6423ea3564d9d988677</code></div>
+      <div class="row" style="margin-top:.6rem;color:#cfcff0">
+        <span class="k">how</span><span>temperature 0 · enum-constrained fields · content-hash cache (production cost stored <i>with</i> the data, not run-state)</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span>Two applications, one toolkit</h2>
+    <div class="two">
+      <div class="panel">
+        <h3 style="margin:.1rem 0 .4rem;font-size:1.02rem">📄 Research brief assembly line</h3>
+        <p style="margin:0;color:var(--muted);font-size:.92rem">Abstracts in, a polished evidence brief out — filtered, summarized, scored, and quality-audited entirely by local workers.</p>
+      </div>
+      <div class="panel">
+        <h3 style="margin:.1rem 0 .4rem;font-size:1.02rem">🔬 Autoscience deep-research loop</h3>
+        <p style="margin:0;color:var(--muted);font-size:.92rem">A keep-or-revert research loop where a local model proposes each move and scores a construct-fit metric — Karpathy-style autoscience on modest hardware.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span>Why it matters</h2>
+    <p class="lead" style="color:var(--ink);font-size:1.06rem">
+      At ten abstracts the savings are a rounding error. At <b>thousands of documents
+      across many projects</b>, the bulk work moving from a frontier bill to a modest
+      electricity bill is the whole game — and the frontier model still does the part
+      only it can: design the chain, judge the hard calls, and write the result.</p>
+  </section>
+
+  <footer>
+    pem725/coordinated-ai · private · dependency-free Python toolkit + LM Studio ·
+    coordinator/ (client · router · spot-check · WorkerPool) + examples/ + tests/<br>
+    Generated as a project overview. The numbers above are from a real local run.
+  </footer>
+
+</div>
+</body></html>
