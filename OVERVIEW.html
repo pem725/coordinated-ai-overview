@@ -44,6 +44,10 @@
   .tag.rule{background:#718096} .tag.ai{background:var(--brand)}
   .foot{color:var(--muted);font-size:.85rem;margin-top:3rem;border-top:1px solid var(--line);
         padding-top:1.3rem;text-align:center}
+  .demo-gif{margin-top:-1.6rem;text-align:center}
+  .demo-gif img{max-width:100%;border-radius:12px;border:1px solid var(--line);
+                box-shadow:0 8px 30px rgba(30,20,80,.18)}
+  .demo-gif .cap{color:var(--muted);font-size:.86rem;margin-top:.55rem}
   @media(max-width:720px){.two,.flow,.stats{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}header h1{font-size:2rem}}
 </style></head><body>
 
@@ -56,6 +60,12 @@
 </header>
 
 <div class="wrap">
+
+  <div class="demo-gif">
+    <img src="finance_run.gif"
+         alt="A live run: 24 bank transactions sorted on a home computer for $0, nothing uploaded">
+    <div class="cap">A real run — 24 transactions sorted on a home computer · grey = free rule, purple = local helper · $0 to any AI company · nothing left the machine</div>
+  </div>
 
   <section>
     <h2>A problem you actually have</h2>
